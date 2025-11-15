@@ -1,0 +1,3 @@
+[submodule "DBT/big_data_project_dbt"]
+	path = DBT/big_data_project_dbt
+	url = https://github.com/ToanIT0104/big_data_project_dbt.git
