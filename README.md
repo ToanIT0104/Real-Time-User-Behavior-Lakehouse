@@ -1,4 +1,4 @@
-# Glamira Data Platform: Real-Time Lakehouse Ingestion Pipeline
+#Real-Time Lakehouse Ingestion Pipeline
 
 This project implements a modern **Lakehouse architecture** designed for real-time ingestion, enrichment, and processing of e-commerce clickstream data. The pipeline leverages Spark Structured Streaming to consume events from Kafka, enriches data on the fly (User-Agent parsing, product metadata crawling, and geolocation), and manages the data lifecycle from raw ingestion to analytical readiness in Google BigQuery and Google Cloud Storage.
 
