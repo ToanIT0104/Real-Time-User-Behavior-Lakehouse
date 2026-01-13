@@ -1,131 +1,158 @@
-# Data Ingestion & Streaming Pipeline
+# Glamira Data Platform: Real-Time Lakehouse Ingestion Pipeline
 
-This project implements a robust data ingestion and streaming pipeline designed to process real-time e-commerce events from Kafka, enrich them with metadata, and land them into a Google Cloud-based data warehouse for analytical processing.
+This project implements a modern **Lakehouse architecture** designed for real-time ingestion, enrichment, and processing of e-commerce clickstream data. The pipeline leverages Spark Structured Streaming to consume events from Kafka, enriches data on the fly (User-Agent parsing, product metadata crawling, and geolocation), and manages the data lifecycle from raw ingestion to analytical readiness in Google BigQuery and Google Cloud Storage.
 
 ## 1. Project Overview
 
-The pipeline consumes event data (specifically product views) from a Kafka cluster, processes and cleans the data using PySpark Streaming, and performs real-time enrichment. The architecture follows a multi-stage approach where data is landed in BigQuery and archived to Google Cloud Storage (GCS) as a "Bronze" layer. Once the data is in BigQuery, **dbt** (Data Build Tool) is utilized for downstream data cleaning, transformation, and modeling, moving data through Bronze, Silver, and Gold layers for final analysis.
+The platform follows a Lakehouse pattern to bridge the gap between the flexibility of a data lake and the performance of a data warehouse.
+
+**End-to-End Data Flow:**
+
+1. **Ingestion:** Captured real-time events from a multi-node Kafka cluster.
+2. **Stream Processing:** Spark Structured Streaming consumes raw JSON events, enforces schema, and enriches User-Agent metadata using custom UDFs.
+3. **Storage (Bronze):** Raw and semi-processed data is stored as the Bronze layer. Staging occurs in BigQuery temporary tables before being exported to Google Cloud Storage (GCS) in Parquet format.
+4. **Transformation:** dbt (Data Build Tool) is responsible for data cleaning, transformation, and modeling through Silver and Gold layers.
+5. **Analytics:** Final analytical tables are materialized in Google BigQuery for business intelligence.
 
 ## 2. Key Features
 
-* **Real-time Streaming**: Consumes JSON-formatted event data from the `product_view` Kafka topic.
-* **User-Agent Enrichment**: Utilizes custom Spark UDFs to parse raw user-agent strings into structured data (browser, OS, device family, brand, and model).
-* **Automated Data Cleaning**: Flattens nested product options and removes null or empty values before ingestion.
-* **Hybrid Storage Strategy**:
-* **BigQuery**: Real-time insertion into `summary`, `products`, and `user_agent` tables.
-* **GCS Archive**: Exports temporary batch data to Parquet format in GCS (`gs://big_data_project_final/bronze/summary/`) for long-term storage and Bronze-layer persistence.
-
-
-* **Parallel Web Crawling**: A dedicated enrichment script crawls the Glamira website to retrieve product names for IDs captured in the stream.
-* **Batch IP Geolocation**: A utility for mapping IP addresses to geographical locations using a local IP2Location database.
+* **Real-Time Streaming:** Robust Kafka-to-Spark integration with SASL authentication.
+* **User-Agent Enrichment:** Custom PySpark UDFs to extract Browser, OS, and Device specifications (Brand, Model, Family) using the `user-agents` library.
+* **Automated Product Crawling:** A multi-threaded web scraper (using BeautifulSoup) that retrieves missing product metadata from the Glamira website and updates the BigQuery catalog.
+* **Staging & Export Logic:** Automated "foreachBatch" processing that inserts records into BigQuery and triggers exports to GCS as Parquet files.
+* **IP Geolocation:** A batch utility for mapping IP addresses to geographic coordinates (Country, Region, City) using a local IP2Location database.
 
 ## 3. Tech Stack
 
-* **Streaming Engine**: PySpark (Spark SQL Kafka connector v0-10).
-* **Message Broker**: Apache Kafka.
-* **Data Warehouse**: Google BigQuery.
-* **Cloud Storage**: Google Cloud Storage (GCS).
-* **Transformation Layer**: dbt (used for Bronze → Silver → Gold modeling).
-* **Programming Language**: Python 3.12.
-* **Key Libraries**: `pandas`, `beautifulsoup4`, `requests`, `google-cloud-bigquery`, `user-agents`.
+* **Ingestion:** Apache Kafka (SASL_PLAINTEXT).
+* **Stream Processing:** Apache Spark 3.5 (Structured Streaming), PySpark.
+* **Storage & Lakehouse:** Google Cloud Storage (GCS), Apache Parquet.
+* **Data Warehouse:** Google BigQuery.
+* **Transformation:** dbt (modeling logic managed externally).
+* **Libraries:** `user-agents` (UA parsing), `BeautifulSoup4` (Scraping), `pandas` (Geolocation), `venv-pack`.
 
-## 4. Project Architecture / Folder Structure
+## 4. Lakehouse Architecture
 
-The ingestion component is organized as follows:
+* **Bronze Layer:** Contains raw and semi-processed events. Data is stored in GCS as Parquet files, serving as the immutable source of truth.
+* **Silver Layer:** Managed by dbt; involves data cleaning, filtering, and joining streaming events with enriched product and user metadata.
+* **Gold Layer:** Managed by dbt; contains high-level analytical models and aggregated tables optimized for BI tools in BigQuery.
 
-* `spark_streaming.py`: The core streaming application handling Kafka consumption, data cleaning, enrichment, and BQ/GCS ingestion.
-* `schemas.py`: Defines the Spark `StructType` schema (`event_schema`) for the incoming Kafka JSON payloads, including nested cart and product details.
-* `browser/`: Contains logic for User-Agent parsing and Spark UDF definitions.
-* `crawl_product_name.py`: Independent script that fetches uncrawled product IDs from BigQuery and updates them with names crawled via HTTP.
-* `get_iplocation/`: Utility for batch processing IP addresses into location metadata.
-* `key.json`: Service account credentials for Google Cloud authentication.
-* **Transformation (dbt)**: A separate layer (not included in this source directory) responsible for transforming the ingested "Bronze" data in BigQuery into "Silver" and "Gold" analytical models.
+## 5. Project Structure
 
-## 5. Setup & Installation
-
-1. **Prerequisites**:
-* Python 3.12+
-* Apache Spark 3.5.0 cluster with Kafka connectors.
-* A Google Cloud Project with BigQuery and GCS enabled.
-
-
-2. **Install Dependencies**:
-```bash
-pip install -r requirements.txt
+```text
+IngestionData/
+├── browser/
+│   └── browser.py           # User-Agent parsing UDFs and logic
+├── get_iplocation/
+│   └── get_iplocation.py    # IP Geolocation batch processing utility
+├── crawl_product_name.py    # Multi-threaded web scraper for product metadata
+├── spark_streaming.py       # Main entry point for Kafka-to-BigQuery streaming
+├── schemas.py               # StructType definitions for JSON parsing
+├── requirements.txt         # Python dependencies
+└── key.json                 # GCP Service Account credentials
 
 ```
 
+## 6. Setup & Installation
 
-*(Dependencies include: `pandas`, `google-cloud-bigquery`, `user-agents`, etc.)*
-3. **Credentials**:
-* Ensure `key.json` is placed in the project root to allow BigQuery and Storage client authentication.
+1. **Prerequisites:** Ensure you have Docker, Apache Spark, and a Google Cloud Project with BigQuery and GCS enabled.
+2. **Environment:** Place your Google Cloud service account key (`key.json`) in the `IngestionData` directory.
+3. **Kafka Access:** The pipeline is configured to connect to the Kafka cluster at `46.202.167.130:9094`.
 
+## 7. How to Run the Project
 
-4. **Kafka Configuration**:
-* The system expects a Kafka broker at the specified IP (46.202.167.130) using SASL_PLAINTEXT authentication.
+The entire ingestion and streaming pipeline is executed using a single Docker command, which handles environment preparation, dependency installation, and Spark job submission inside a containerized Spark runtime.
 
+### 1. Start the Lakehouse Ingestion Pipeline
 
+Run the following command from the project root to package the source code, start a Spark container, and launch the streaming job:
 
-## 6. How to Run
+```powershell
+Remove-Item -Path .\BigDataProject\BigDataProject.zip -Force -ErrorAction SilentlyContinue
+Compress-Archive -Path .\BigDataProject\* -DestinationPath .\BigDataProject\BigDataProject.zip -Force
 
-### Start the Streaming Pipeline
+docker container stop test-spark
+docker container rm test-spark
 
-Execute the PySpark application to begin ingesting Kafka events:
-
-```bash
-python spark_streaming.py
-
-```
-
-### Run Product Name Crawler
-
-To enrich the ingested product data with names:
-
-```bash
-python crawl_product_name.py
-
-```
-
-### Run IP Geolocation Utility
-
-To process a list of IPs from `ips.txt`:
-
-```bash
-python get_iplocation/get_iplocation.py
-
-```
-
-## 7. Configuration
-
-The following configurations are hardcoded or managed via environment variables in `spark_streaming.py` and `crawl_product_name.py`:
-
-* **GCP Project ID**: `bigdataproject-474006`.
-* **BigQuery Dataset**: `Glamira`.
-* **Kafka Topic**: `product_view`.
-* **GCS Bucket**: `big_data_project_final`.
-* **Checkpointing**: Spark checkpoints are stored in `/tmp/spark_checkpoints/`.
-
-## 8. Usage Examples
-
-### Manual Export Trigger
-
-The `spark_streaming.py` application monitors a local trigger file. To manually force an export of the temporary BigQuery summary data to GCS:
-
-```bash
-touch /tmp/export_trigger.txt
+docker run -ti --name test-spark `
+    --network=streaming-network `
+    -p 4040:4040 `
+    -v ${PWD}:/spark `
+    -v spark_lib:/opt/bitnami/spark/.ivy2 `
+    -v spark_data:/data `
+    -e PYSPARK_DRIVER_PYTHON=python `
+    -e PYSPARK_PYTHON=./environment/bin/python `
+    -e GOOGLE_APPLICATION_CREDENTIALS=/spark/BigDataProject/key.json `
+    unigap/spark:3.5 bash -c "
+        python -m venv pyspark_venv && \
+        source pyspark_venv/bin/activate && \
+        pip install -r /spark/BigDataProject/requirements.txt && \
+        venv-pack -o pyspark_venv.tar.gz && \
+        spark-submit \
+            --repositories https://repo1.maven.org/maven2/,https://storage.googleapis.com/spark-lib/bigquery \
+            --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3 \
+            --archives pyspark_venv.tar.gz#environment \
+            --py-files /spark/BigDataProject/BigDataProject.zip,/spark/BigDataProject/browser.zip \
+            /spark/BigDataProject/spark_streaming.py
+    "
 
 ```
 
-The watcher thread will detect the file, execute the `EXPORT DATA` SQL command, and delete the temporary table.
+This command performs the following steps:
+
+* Packages the ingestion source code into a ZIP archive.
+* Starts a Spark container connected to the Kafka network.
+* Creates and packages a Python virtual environment.
+* Submits the Spark Structured Streaming job.
+* Begins consuming Kafka events and ingesting data into BigQuery.
+
+**Spark UI is exposed at:** 👉 `http://localhost:4040`
+
+### 2. Trigger Export to GCS (Bronze Layer)
+
+To export the current staging data from BigQuery to Google Cloud Storage (Bronze layer), run:
+
+```bash
+docker exec -it test-spark touch /tmp/export_trigger.txt
+
+```
+
+The streaming application monitors this trigger file and will:
+
+* Execute the BigQuery `EXPORT DATA` operation.
+* Write Parquet files to the GCS Bronze layer.
+* Clean up temporary staging tables.
+
+## 8. Configuration
+
+Important variables found in the source code:
+
+* **GCP Project ID:** `bigdataproject-474006`
+* **BigQuery Dataset:** `Glamira`
+* **Kafka Bootstrap Servers:** `46.202.167.130:9094, 46.202.167.130:9194, 46.202.167.130:9294`
+* **Kafka Topic:** `product_view`
+* **GCS Bucket:** `gs://big_data_project_final/`
 
 ## 9. Notes / Limitations
 
-* **dbt Models**: This repository focuses strictly on the ingestion layer. dbt transformation models, tests, and YAML configurations are maintained separately.
-* **Service Account**: The provided code relies on a local service account file (`key.json`). In production, Google Application Default Credentials (ADC) or Secret Manager are recommended.
-* **Crawl Retries**: The product crawler is limited to 3 retries per URL to avoid IP blocking.
+* **dbt Models:** This repository contains only the ingestion and streaming code. dbt models for Silver and Gold layers are not included in this source.
+* **IP Database:** The `get_iplocation.py` script requires an external CSV (`IP2LOCATION-LITE-DB5.CSV`) which is not included.
+* **Hardcoded Paths:** The `crawl_product_name.py` script contains a hardcoded local path for the GCP key that may need adjustment for Linux/Docker environments.
 
 ## 10. Future Improvements
 
-* Integrate the IP geolocation logic directly into the Spark Streaming UDFs for real-time location enrichment.
-* Implement a more robust configuration management system (e.g., `.env` or YAML) to replace hardcoded project IDs and Kafka IPs.
-* Automate the trigger of the `crawl_product_name.py` script via a workflow orchestrator like Apache Airflow.
+* Implement workflow orchestration (e.g., Apache Airflow) to automate the product scraper and dbt transformation runs.
+* Add unit tests for Spark UDFs and schema validation logic.
+* Parameterize hardcoded configurations into a central `.env` or YAML file.
+
+Data Visualization & Insights
+The analytical output of the Lakehouse platform is materialized into Gold-layer tables within BigQuery and visualized through Looker Studio to support data-driven decision-making.
+
+Executive Sales Overview
+This dashboard provides a high-level summary of core business KPIs, including revenue performance, order volume, and customer acquisition metrics. It enables stakeholders to monitor global revenue distribution by country and track daily financial trends at a glance.
+
+Product Performance & Material Analysis
+Focused on inventory and catalog intelligence, this dashboard analyzes sales velocity and revenue generation across top products. It specifically identifies customer preferences for various materials and gemstones, providing actionable insights for product development and marketing strategies.
+
+Geographic & Technical Audience Breakdown
+This visualization maps global revenue across specific regions and cities to pinpoint high-growth markets. Additionally, it correlates transaction data with technical metadata—such as device types and web browsers—to help optimize the front-end user experience and target platform-specific optimizations.
