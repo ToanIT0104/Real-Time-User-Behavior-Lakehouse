@@ -149,6 +149,7 @@ Data Visualization & Insights
 The analytical output of the Lakehouse platform is materialized into Gold-layer tables within BigQuery and visualized through Looker Studio to support data-driven decision-making.
 
 Executive Sales Overview
+<img width="1181" height="490" alt="Image" src="https://github.com/user-attachments/assets/03a9c954-69ef-4d0b-b9ab-e921bc134352" />
 This dashboard provides a high-level summary of core business KPIs, including revenue performance, order volume, and customer acquisition metrics. It enables stakeholders to monitor global revenue distribution by country and track daily financial trends at a glance.
 
 Product Performance & Material Analysis
