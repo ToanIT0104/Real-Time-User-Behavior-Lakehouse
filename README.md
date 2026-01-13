@@ -153,7 +153,11 @@ Executive Sales Overview
 This dashboard provides a high-level summary of core business KPIs, including revenue performance, order volume, and customer acquisition metrics. It enables stakeholders to monitor global revenue distribution by country and track daily financial trends at a glance.
 
 Product Performance & Material Analysis
+<img width="1107" height="762" alt="Image" src="https://github.com/user-attachments/assets/d3841d8a-1951-4fe0-8896-20121babbf3d" />
 Focused on inventory and catalog intelligence, this dashboard analyzes sales velocity and revenue generation across top products. It specifically identifies customer preferences for various materials and gemstones, providing actionable insights for product development and marketing strategies.
 
 Geographic & Technical Audience Breakdown
+<img width="1201" height="805" alt="Image" src="https://github.com/user-attachments/assets/728c637d-1bfb-434b-ba95-d91ba9b332b8" />
+
+<img width="1150" height="813" alt="Image" src="https://github.com/user-attachments/assets/8d149dfb-782e-473a-b2c7-fe78c686f51a" />
 This visualization maps global revenue across specific regions and cities to pinpoint high-growth markets. Additionally, it correlates transaction data with technical metadata—such as device types and web browsers—to help optimize the front-end user experience and target platform-specific optimizations.
